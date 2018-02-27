@@ -37,34 +37,33 @@ NETS = {'ResNet-101': ('ResNet-101',
                   'resnet50_rfcn_final.caffemodel')}
 
 
-def vis_detections(im, class_name, dets, thresh=0.5):
+def vis_detections(im, classnames, detses, thresh=0.5):
     """Draw detected bounding boxes."""
-    inds = np.where(dets[:, -1] >= thresh)[0]
-    if len(inds) == 0:
-        return
-
-    im = im[:, :, (2, 1, 0)]
     fig, ax = plt.subplots(figsize=(12, 12))
+    im = im[:, :, (2, 1, 0)]
     ax.imshow(im, aspect='equal')
-    for i in inds:
-        bbox = dets[i, :4]
-        score = dets[i, -1]
+    
+    for idx,class_name in enumerate(classnames):
+        dets = detses[idx]
+        inds = np.where(dets[:, -1] >= thresh)[0]
+        if len(inds) == 0:
+            continue
 
-        ax.add_patch(
-            plt.Rectangle((bbox[0], bbox[1]),
+        for i in inds:
+            bbox = dets[i, :4]
+            score = dets[i, -1]
+
+            ax.add_patch(plt.Rectangle((bbox[0], bbox[1]),
                           bbox[2] - bbox[0],
                           bbox[3] - bbox[1], fill=False,
                           edgecolor='red', linewidth=3.5)
             )
-        ax.text(bbox[0], bbox[1] - 2,
+            ax.text(bbox[0], bbox[1] - 2,
                 '{:s} {:.3f}'.format(class_name, score),
                 bbox=dict(facecolor='blue', alpha=0.5),
                 fontsize=14, color='white')
 
-    ax.set_title(('{} detections with '
-                  'p({} | box) >= {:.1f}').format(class_name, class_name,
-                                                  thresh),
-                  fontsize=14)
+    ax.set_title(('detections with p(all| box) >= {:.1f}').format(thresh), fontsize=14)
     plt.axis('off')
     plt.tight_layout()
     plt.draw()
@@ -87,6 +86,8 @@ def demo(net, image_name):
     # Visualize detections for each class
     CONF_THRESH = 0.8
     NMS_THRESH = 0.3
+    classes=[]
+    detses=[]
     for cls_ind, cls in enumerate(CLASSES[1:]):
         cls_ind += 1 # because we skipped background
         cls_boxes = boxes[:, 4:8]
@@ -95,7 +96,9 @@ def demo(net, image_name):
                           cls_scores[:, np.newaxis])).astype(np.float32)
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
-        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        classes.append(cls)
+        detses.append(dets)
+    vis_detections(im, classes, detses, thresh=CONF_THRESH)
 
 def parse_args():
     """Parse input arguments."""
